@@ -44,6 +44,11 @@ diff -rq -x __pycache__ skills/fable-orchestrator "$HOME/.claude/skills/fable-or
 for agent in agents/*.md; do cmp "$agent" "$HOME/.claude/agents/$(basename "$agent")"; done
 ```
 
+The test suite also passes from the installed copy:
+`PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s "$HOME/.claude/skills/fable-orchestrator/tests" -v`.
+The two package-only checks (exact `agents/` contents and this README) skip there because
+`~/.claude/agents` holds other agents and `~/.claude/README.md` belongs to another project.
+
 ## Use
 
 ```text
@@ -97,6 +102,8 @@ one executor runs the checks, writing only inside the session scratchpad. Such a
 - `write_json` refuses to follow a symlink at the snapshot path (`O_NOFOLLOW`).
 - Model ids live in `EXPECTED_MODEL_IDS`, and the test suite checks the agent frontmatter, SKILL.md,
   and README against them.
+- The frontmatter test suite detects whether it runs from the export or from an installed copy
+  (`SHA256SUMS` marker) and skips the two package-only checks when installed.
 - Test coverage of both helper scripts is above 80%.
 - SKILL.md and README document the `BLOCKED` recording path, verification-only runs, the environment
   variables, and the known `actual-model` limitations.

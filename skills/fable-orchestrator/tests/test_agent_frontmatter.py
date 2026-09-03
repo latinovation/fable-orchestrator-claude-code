@@ -11,6 +11,7 @@ PACKAGE_ROOT = Path(__file__).resolve().parents[3]
 AGENTS_DIR = PACKAGE_ROOT / "agents"
 SKILL_PATH = Path(__file__).resolve().parents[1] / "SKILL.md"
 README_PATH = PACKAGE_ROOT / "README.md"
+CHECKSUM_MARKER = "SHA256SUMS"
 PLANNING_TOOLS = {"Read", "Grep", "Glob"}
 EXECUTION_TOOLS = PLANNING_TOOLS | {"Edit", "Write", "Bash"}
 EXPECTED_TOOLS = {
@@ -29,6 +30,30 @@ maxTurns: 64
 
 Body.
 """
+
+
+def is_package_root(root: Path) -> bool:
+    """Tell this export apart from an installed copy, which has no checksum file."""
+    return (root / CHECKSUM_MARKER).is_file()
+
+
+def agent_names_in(agents_dir: Path) -> list[str]:
+    """Return the sorted stems of every agent definition found in ``agents_dir``."""
+    return sorted(path.stem for path in agents_dir.glob("*.md"))
+
+
+def missing_expected_agents(agents_dir: Path) -> list[str]:
+    """Return the expected agent names that have no definition file in ``agents_dir``."""
+    return sorted(
+        name
+        for name in feedback.EXPECTED_MODEL_IDS
+        if not (agents_dir / f"{name}.md").is_file()
+    )
+
+
+IS_PACKAGE = is_package_root(PACKAGE_ROOT)
+INSTALLED_AGENTS_SKIP = "installed copies share agents/ with unrelated agents"
+INSTALLED_README_SKIP = "README.md next to an installed skill is not this package's README"
 
 
 def check_agent(path: Path, expected_model_id: str, expected_tools: set[str]) -> dict[str, object]:
@@ -65,8 +90,32 @@ class AgentFrontmatterTests(unittest.TestCase):
         )
 
     def test_agent_directory_holds_exactly_the_expected_agents(self):
-        found = sorted(path.stem for path in AGENTS_DIR.glob("*.md"))
-        self.assertEqual(found, sorted(feedback.EXPECTED_MODEL_IDS))
+        if not IS_PACKAGE:
+            self.skipTest(INSTALLED_AGENTS_SKIP)
+        self.assertEqual(agent_names_in(AGENTS_DIR), sorted(feedback.EXPECTED_MODEL_IDS))
+
+    def test_expected_agents_are_present_in_agents_dir(self):
+        self.assertEqual(missing_expected_agents(AGENTS_DIR), [])
+
+    def test_is_package_root_requires_the_checksum_marker(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.assertFalse(is_package_root(root))
+            (root / CHECKSUM_MARKER).write_text("")
+            self.assertTrue(is_package_root(root))
+
+    def test_missing_expected_agents_reports_absent_files(self):
+        expected = sorted(feedback.EXPECTED_MODEL_IDS)
+        extras = ["unrelated-a", "unrelated-b"]
+        with tempfile.TemporaryDirectory() as directory:
+            agents_dir = Path(directory)
+            for name in expected[1:]:
+                (agents_dir / f"{name}.md").write_text(NEGATIVE_FIXTURE)
+            self.assertEqual(missing_expected_agents(agents_dir), [expected[0]])
+            for name in [expected[0], *extras]:
+                (agents_dir / f"{name}.md").write_text(NEGATIVE_FIXTURE)
+            self.assertEqual(missing_expected_agents(agents_dir), [])
+            self.assertEqual(agent_names_in(agents_dir), sorted(expected + extras))
 
     def test_the_check_rejects_an_agent_without_a_model(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -97,6 +146,8 @@ class SkillDocumentTests(unittest.TestCase):
         self.assertEqual(found, {feedback.FABLE_MODEL_ID, feedback.OPUS_MODEL_ID})
 
     def test_readme_documents_both_verified_model_ids(self):
+        if not IS_PACKAGE:
+            self.skipTest(INSTALLED_README_SKIP)
         if not README_PATH.is_file():
             self.skipTest("README.md is not part of an installed skill")
         text = README_PATH.read_text()

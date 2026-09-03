@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -17,7 +18,9 @@ from pathlib import Path
 
 PINNED_NPX_SPEC = "react-doctor@0.9.12"
 VERSION_PATTERN = re.compile(r"\b(?:v)?(\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?)\b")
-NETWORK_SCRIPT = re.compile(r"(?:\b(?:npx|pnpx|bunx|dlx)\b|\bnpm\s+exec\b|@latest)")
+NETWORK_SCRIPT = re.compile(
+    r"(?:\b(?:npx|pnpx|bunx|dlx)\b|\b(?:npm|bun)\s+(?:exec|x)\b|@latest)"
+)
 
 
 @dataclass(frozen=True)
@@ -240,8 +243,21 @@ def compare(baseline: dict[str, object], final: dict[str, object]) -> dict[str, 
 
 def write_json(path: Path, value: dict[str, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
+    payload = (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(path, flags, 0o600)
+    try:
+        os.write(fd, payload)
+    finally:
+        os.close(fd)
     path.chmod(0o600)
+
+
+def load_snapshot(path: Path) -> dict[str, object]:
+    value = json.loads(path.read_text())
+    if not isinstance(value, dict):
+        raise ValueError(f"snapshot is not a JSON object: {path.name}")
+    return value
 
 
 def scan(args: argparse.Namespace) -> int:
@@ -323,24 +339,30 @@ def parser() -> argparse.ArgumentParser:
     return result
 
 
-def main() -> None:
-    args = parser().parse_args()
+def dispatch(args: argparse.Namespace) -> int:
     if args.command == "discover":
         command = discover(args.project.resolve(), args.allow_pinned_npx)
         print(json.dumps({"source": command.source, "argv": command.argv}))
-    elif args.command == "scan":
-        raise SystemExit(scan(args))
-    elif args.command == "compare":
-        baseline = json.loads(args.baseline.read_text())
-        final = json.loads(args.final.read_text())
+        return 0
+    if args.command == "scan":
+        return scan(args)
+    if args.command == "compare":
+        baseline = load_snapshot(args.baseline)
+        final = load_snapshot(args.final)
         print(json.dumps(compare(baseline, final), indent=2, sort_keys=True))
-    else:
-        self_test()
+        return 0
+    self_test()
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parser().parse_args(argv)
+    try:
+        return dispatch(args)
+    except (OSError, RuntimeError, ValueError, subprocess.TimeoutExpired) as error:
+        print(f"react-doctor wrapper error: {error}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except (OSError, RuntimeError, subprocess.TimeoutExpired) as error:
-        print(f"react-doctor wrapper error: {error}", file=sys.stderr)
-        raise SystemExit(2)
+    raise SystemExit(main())

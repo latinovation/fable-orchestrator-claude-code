@@ -1,47 +1,11 @@
 from __future__ import annotations
 
-import importlib.util
 import json
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-ROOT = Path(__file__).parents[1]
-
-
-def load(name: str, filename: str):
-    spec = importlib.util.spec_from_file_location(name, ROOT / "scripts" / filename)
-    module = importlib.util.module_from_spec(spec)
-    assert spec.loader
-    sys.modules[name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-feedback = load("model_feedback", "model_feedback.py")
-doctor = load("react_doctor", "react_doctor.py")
-
-
-def completed(run_id: str, *, model: str = "sonnet", tags: list[str] | None = None, version: str = "not-run"):
-    return feedback.validate(
-        {
-            "run_id": run_id,
-            "stage": "complete",
-            "task_class": "routine",
-            "tags": tags or ["ui"],
-            "planned_model": model,
-            "actual_model": model,
-            "planner_actual_model": "fable",
-            "auditor_actual_model": "fable",
-            "outcome": "pass",
-            "model_fit": "right-sized",
-            "planner_quality": "strong",
-            "executor_quality": "strong",
-            "auditor_quality": "no-findings",
-            "react_doctor_version": version,
-        }
-    )
+from support import completed, doctor, feedback
 
 
 class FeedbackTests(unittest.TestCase):
@@ -57,7 +21,7 @@ class FeedbackTests(unittest.TestCase):
     def test_schema_invalid_json_object_is_ignored(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "history.jsonl"
-            path.write_text('{"run_id":"valid-run-1","repair_cycles":"bad"}\n')
+            path.write_text('{"run_id":"valid-run-1","outcome":"pass","repair_cycles":"bad"}\n')
             records, invalid = feedback.load_records(path)
             self.assertEqual(records, [])
             self.assertEqual(invalid, 1)

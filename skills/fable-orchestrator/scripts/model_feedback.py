@@ -15,6 +15,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 DEFAULT_PATH = Path.home() / ".claude" / "model-routing" / "history.jsonl"
+FABLE_MODEL_ID = "claude-fable-5-1"
+OPUS_MODEL_ID = "claude-opus-5"
+SONNET_MODEL_ALIAS = "sonnet"
+EXPECTED_MODEL_IDS = {
+    "fable-planner": FABLE_MODEL_ID,
+    "fable-auditor": FABLE_MODEL_ID,
+    "opus-executor": OPUS_MODEL_ID,
+    "sonnet-executor": SONNET_MODEL_ALIAS,
+}
 MODEL_VALUES = {"sonnet", "opus", "fable", "haiku", "unknown"}
 ENUMS = {
     "task_class": {"routine", "complex", "high-risk", "unknown"},
@@ -33,6 +42,8 @@ COUNTS = {"repair_cycles", "checks_failed", "material_findings", "files_changed"
 REACT_DOCTOR_SCORES = {"react_doctor_baseline_score", "react_doctor_final_score"}
 SAFE_ID = re.compile(r"^[A-Za-z0-9_-]{8,80}$")
 SAFE_VERSION = re.compile(r"^(?:not-run|[A-Za-z0-9][A-Za-z0-9._+-]{0,31})$")
+RECORDED_AT = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,6})?\+00:00$")
+TAG = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
 
 
 def state_path() -> Path:
@@ -58,8 +69,8 @@ def validate(raw: object, *, legacy_run_id: str | None = None) -> dict[str, obje
     record: dict[str, object] = {"schema_version": 2, "run_id": run_id, "stage": stage}
     for key, allowed in ENUMS.items():
         value = raw.get(key, "unknown")
-        if value not in allowed:
-            raise ValueError(f"invalid {key}: {value!r}")
+        if not isinstance(value, str) or value not in allowed:
+            raise ValueError(f"missing {key}" if key not in raw else f"invalid {key}: {value!r}")
         record[key] = value
 
     tags = raw.get("tags", [])
@@ -67,9 +78,10 @@ def validate(raw: object, *, legacy_run_id: str | None = None) -> dict[str, obje
         raise ValueError("tags must be a list of at most 8 controlled labels")
     clean_tags = []
     for tag in tags:
-        if not isinstance(tag, str) or not tag or len(tag) > 32 or not tag.replace("-", "").isalnum():
+        lowered = tag.lower() if isinstance(tag, str) else ""
+        if not TAG.fullmatch(lowered):
             raise ValueError(f"invalid tag: {tag!r}")
-        clean_tags.append(tag.lower())
+        clean_tags.append(lowered)
     record["tags"] = sorted(set(clean_tags))
 
     for key in COUNTS:
@@ -107,7 +119,12 @@ def validate(raw: object, *, legacy_run_id: str | None = None) -> dict[str, obje
     )
 
     recorded_at = raw.get("recorded_at")
-    record["recorded_at"] = recorded_at if isinstance(recorded_at, str) and recorded_at else now_iso()
+    if recorded_at is None:
+        record["recorded_at"] = now_iso()
+    elif isinstance(recorded_at, str) and RECORDED_AT.fullmatch(recorded_at):
+        record["recorded_at"] = recorded_at
+    else:
+        raise ValueError("recorded_at must be an ISO-8601 UTC timestamp")
     record["planner_agent"] = "fable-planner"
     record["planner_requested_model"] = "fable"
     record["auditor_agent"] = "fable-auditor"
@@ -277,45 +294,92 @@ def model_id_matches(model_id: object, expected_model_id: str) -> bool:
     ) is not None
 
 
+def transcript_models(jsonl_path: Path) -> list[object]:
+    """Return every ``model`` candidate found in a subagent transcript."""
+    candidates: list[object] = []
+    for line in jsonl_path.read_text().splitlines():
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict):
+            continue
+        candidates.append(event.get("model"))
+        message = event.get("message")
+        if isinstance(message, dict):
+            candidates.append(message.get("model"))
+    return candidates
+
+
+def detect_model(
+    session_id: str,
+    agent_type: str,
+    projects_root: Path | None = None,
+    expected_model_id: str | None = None,
+) -> tuple[str, str]:
+    """Return the runtime model alias and, when unknown, the reason why."""
+    if not SAFE_ID.fullmatch(session_id):
+        return "unknown", "unsafe session id"
+    root = projects_root or Path.home() / ".claude" / "projects"
+    found: set[str] = set()
+    mismatched: set[str] = set()
+    transcripts = 0
+    for meta_path in sorted(root.glob(f"*/{session_id}/subagents/*.meta.json")):
+        try:
+            meta = json.loads(meta_path.read_text())
+        except (OSError, json.JSONDecodeError):
+            print(f"warning: unreadable metadata {meta_path.name}", file=sys.stderr)
+            continue
+        if not isinstance(meta, dict) or meta.get("agentType") != agent_type:
+            continue
+        jsonl_path = meta_path.with_name(meta_path.name.removesuffix(".meta.json") + ".jsonl")
+        try:
+            candidates = transcript_models(jsonl_path)
+        except OSError:
+            print(f"warning: missing transcript {jsonl_path.name}", file=sys.stderr)
+            continue
+        transcripts += 1
+        for candidate in candidates:
+            alias = model_alias(candidate)
+            if not alias:
+                continue
+            found.add(alias)
+            if expected_model_id and not model_id_matches(candidate, expected_model_id):
+                mismatched.add(str(candidate))
+    return decide_model(found, mismatched, transcripts, agent_type, expected_model_id)
+
+
+def decide_model(
+    found: set[str],
+    mismatched: set[str],
+    transcripts: int,
+    agent_type: str,
+    expected_model_id: str | None,
+) -> tuple[str, str]:
+    if not transcripts:
+        return "unknown", f"no subagent transcript with agentType '{agent_type}'"
+    if not found:
+        return "unknown", "transcript has no model field"
+    if len(found) > 1:
+        return "unknown", f"multiple model aliases found: {sorted(found)}"
+    if mismatched:
+        return (
+            "unknown",
+            f"model id {sorted(mismatched)} does not match expected {expected_model_id}",
+        )
+    return sorted(found)[0], ""
+
+
 def actual_model(
     session_id: str,
     agent_type: str,
     projects_root: Path | None = None,
     expected_model_id: str | None = None,
 ) -> str:
-    if not SAFE_ID.fullmatch(session_id):
-        return "unknown"
-    root = projects_root or Path.home() / ".claude" / "projects"
-    found: set[str] = set()
-    unexpected_model = False
-    for meta_path in root.glob(f"*/{session_id}/subagents/*.meta.json"):
-        try:
-            meta = json.loads(meta_path.read_text())
-        except (OSError, json.JSONDecodeError):
-            continue
-        if meta.get("agentType") != agent_type:
-            continue
-        jsonl_path = meta_path.with_name(meta_path.name.removesuffix(".meta.json") + ".jsonl")
-        try:
-            lines = jsonl_path.read_text().splitlines()
-        except OSError:
-            continue
-        for line in lines:
-            try:
-                event = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            candidates = [event.get("model")]
-            message = event.get("message")
-            if isinstance(message, dict):
-                candidates.append(message.get("model"))
-            for candidate in candidates:
-                alias = model_alias(candidate)
-                if alias:
-                    found.add(alias)
-                    if expected_model_id and not model_id_matches(candidate, expected_model_id):
-                        unexpected_model = True
-    return found.pop() if len(found) == 1 and not unexpected_model else "unknown"
+    alias, reason = detect_model(session_id, agent_type, projects_root, expected_model_id)
+    if reason:
+        print(f"actual-model unknown: {reason}", file=sys.stderr)
+    return alias
 
 
 def self_test() -> None:
@@ -346,7 +410,9 @@ def self_test() -> None:
         )
         append_record(final, path)
         with path.open("a") as handle:
-            handle.write('{"repair_cycles":"broken"}\n')
+            handle.write(
+                '{"run_id":"self-test-broken-1","outcome":"pass","repair_cycles":"broken"}\n'
+            )
         loaded, invalid = load_records(path)
         assert len(loaded) == 1 and loaded[0]["stage"] == "complete"
         assert invalid == 1 and loaded[0]["react_doctor_delta"] == 12
@@ -354,10 +420,36 @@ def self_test() -> None:
     print("self-test passed")
 
 
+def read_stdin_record() -> dict[str, object]:
+    try:
+        raw = json.load(sys.stdin)
+    except ValueError as error:
+        print(f"feedback NOT recorded: invalid JSON on stdin: {error}", file=sys.stderr)
+        raise SystemExit(1) from error
+    if not isinstance(raw, dict):
+        print("feedback NOT recorded: stdin must contain a JSON object", file=sys.stderr)
+        raise SystemExit(1)
+    return raw
+
+
+def store(raw: dict[str, object], path: Path) -> None:
+    try:
+        record = validate(raw)
+    except ValueError as error:
+        print(f"feedback NOT recorded: {error}", file=sys.stderr)
+        raise SystemExit(1) from error
+    try:
+        append_record(record, path)
+    except OSError as error:
+        print(f"feedback NOT recorded: {error}", file=sys.stderr)
+        raise SystemExit(1) from error
+
+
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description=__doc__)
     commands = result.add_subparsers(dest="command", required=True)
-    commands.add_parser("summary")
+    summary_parser = commands.add_parser("summary")
+    summary_parser.add_argument("--exclude-run-id")
     commands.add_parser("self-test")
 
     begin_parser = commands.add_parser("begin")
@@ -385,47 +477,59 @@ def parser() -> argparse.ArgumentParser:
     return result
 
 
-def main() -> None:
-    args = parser().parse_args()
+def record_command(args: argparse.Namespace, path: Path) -> None:
+    raw = read_stdin_record()
+    overrides = {
+        key: value
+        for key in ("planner_actual_model", "actual_model", "auditor_actual_model")
+        if (value := getattr(args, key)) is not None
+    }
+    without_timestamp = {key: value for key, value in raw.items() if key != "recorded_at"}
+    store({**without_timestamp, "run_id": args.run_id, "stage": "complete", **overrides}, path)
+    print("feedback recorded")
+
+
+def fallback_command(args: argparse.Namespace, path: Path) -> None:
+    store(
+        {
+            "run_id": args.run_id,
+            "stage": args.stage,
+            "task_class": args.task_class,
+            "planned_model": args.planned_model,
+            "actual_model": args.actual_model,
+            "planner_actual_model": args.planner_actual_model,
+            "auditor_actual_model": "unknown",
+            "outcome": args.outcome,
+            "model_fit": "unknown",
+            "planner_quality": "unknown",
+            "executor_quality": "unknown",
+            "auditor_quality": "unknown",
+        },
+        path,
+    )
+    print("fallback feedback recorded")
+
+
+def summary_command(args: argparse.Namespace, path: Path) -> None:
+    records, invalid = load_records(path)
+    if args.exclude_run_id:
+        records = [record for record in records if record["run_id"] != args.exclude_run_id]
+    print(summarize(records, invalid))
+
+
+def main(argv: list[str] | None = None) -> None:
+    args = parser().parse_args(argv)
     path = state_path()
     if args.command == "begin":
         print(begin(args.session_id, path))
     elif args.command == "record":
-        raw = json.load(sys.stdin)
-        raw["run_id"] = args.run_id
-        raw["stage"] = "complete"
-        for key in ("planner_actual_model", "actual_model", "auditor_actual_model"):
-            value = getattr(args, key)
-            if value is not None:
-                raw[key] = value
-        append_record(validate(raw), path)
-        print("feedback recorded")
+        record_command(args, path)
     elif args.command == "fallback":
-        append_record(
-            validate(
-                {
-                    "run_id": args.run_id,
-                    "stage": args.stage,
-                    "task_class": args.task_class,
-                    "planned_model": args.planned_model,
-                    "actual_model": args.actual_model,
-                    "planner_actual_model": args.planner_actual_model,
-                    "auditor_actual_model": "unknown",
-                    "outcome": args.outcome,
-                    "model_fit": "unknown",
-                    "planner_quality": "unknown",
-                    "executor_quality": "unknown",
-                    "auditor_quality": "unknown",
-                }
-            ),
-            path,
-        )
-        print("fallback feedback recorded")
+        fallback_command(args, path)
     elif args.command == "actual-model":
         print(actual_model(args.session_id, args.agent_type, expected_model_id=args.expected_model_id))
     elif args.command == "summary":
-        records, invalid = load_records(path)
-        print(summarize(records, invalid))
+        summary_command(args, path)
     else:
         self_test()
 

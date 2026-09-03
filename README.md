@@ -2,6 +2,8 @@
 
 Portable export updated on 2026-09-03. It contains the skill, four global agents, deterministic helpers, and regression tests. It does not contain routing history, transcripts, project code, caches, snapshots, or credentials.
 
+Licensed under the [MIT License](LICENSE).
+
 ## Requirements
 
 - Claude Code with access to `claude-fable-5-1`, `claude-opus-5`, and the `sonnet` model alias.
@@ -107,3 +109,7 @@ one executor runs the checks, writing only inside the session scratchpad. Such a
 - Test coverage of both helper scripts is above 80%.
 - SKILL.md and README document the `BLOCKED` recording path, verification-only runs, the environment
   variables, and the known `actual-model` limitations.
+
+## License
+
+[MIT](LICENSE) &copy; 2026 Latinovation.

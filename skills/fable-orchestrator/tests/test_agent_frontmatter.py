@@ -121,7 +121,7 @@ class AgentFrontmatterTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "opus-executor.md"
             path.write_text(NEGATIVE_FIXTURE)
-            with self.assertRaisesRegex(AssertionError, "model None != 'claude-opus-5'"):
+            with self.assertRaisesRegex(AssertionError, "model None != 'claude-opus-5-5'"):
                 check_agent(path, feedback.OPUS_MODEL_ID, EXECUTION_TOOLS)
 
     def test_the_check_rejects_a_missing_agent_and_a_broken_frontmatter(self):

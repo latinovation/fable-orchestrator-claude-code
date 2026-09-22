@@ -10,7 +10,7 @@ from pathlib import Path
 from support import feedback
 
 SESSION_ID = "session-actual-model-1"
-OPUS_ID = "claude-opus-5"
+OPUS_ID = "claude-opus-5-5"
 SONNET_ID = "claude-sonnet-5"
 SYNTHETIC_ID = "<synthetic>"
 
@@ -95,10 +95,10 @@ class ActualModelTests(unittest.TestCase):
 
     def test_dated_model_id_does_not_match_the_expected_id(self):
         with session_tree() as (root, subagents):
-            write_subagent(subagents, "agent-1", models=["claude-opus-5-20260101"])
+            write_subagent(subagents, "agent-1", models=["claude-opus-5-5-20260101"])
             alias, reason, _, err = detect(root, expected=OPUS_ID)
             self.assertEqual(alias, "unknown")
-            self.assertIn("does not match expected claude-opus-5", reason)
+            self.assertIn("does not match expected claude-opus-5-5", reason)
             self.assertIn("actual-model unknown:", err)
 
     def test_alias_is_returned_without_an_expected_model_id(self):

@@ -16,7 +16,7 @@ from pathlib import Path
 
 DEFAULT_PATH = Path.home() / ".claude" / "model-routing" / "history.jsonl"
 FABLE_MODEL_ID = "claude-fable-5-1"
-OPUS_MODEL_ID = "claude-opus-5"
+OPUS_MODEL_ID = "claude-opus-5-5"
 SONNET_MODEL_ALIAS = "sonnet"
 EXPECTED_MODEL_IDS = {
     "fable-planner": FABLE_MODEL_ID,

@@ -6,7 +6,7 @@ Licensed under the [MIT License](LICENSE).
 
 ## Requirements
 
-- Claude Code with access to `claude-fable-5-1`, `claude-opus-5`, and the `sonnet` model alias.
+- Claude Code with access to `claude-fable-5-1`, `claude-opus-5-5`, and the `sonnet` model alias.
 - Python 3.10 or newer.
 - Node/npm only if the user approves the pinned React Doctor fallback.
 
@@ -57,7 +57,7 @@ The two package-only checks (exact `agents/` contents and this README) skip ther
 /fable-orchestrator <task>
 ```
 
-The skill is explicit-only. Fable 5.1 orchestrates, plans, verifies, and audits; Sonnet or Opus 5
+The skill is explicit-only. Fable 5.1 orchestrates, plans, verifies, and audits; Sonnet or Opus 5.5
 implements according to risk. React Doctor prefers an existing local installation. Its network
 fallback requires approval and is pinned to `react-doctor@0.9.12`.
 

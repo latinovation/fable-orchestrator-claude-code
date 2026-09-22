@@ -59,17 +59,17 @@ class FeedbackTests(unittest.TestCase):
             subagents.mkdir(parents=True)
             (subagents / "agent-1.meta.json").write_text(json.dumps({"agentType": "opus-executor"}))
             (subagents / "agent-1.jsonl").write_text(
-                json.dumps({"message": {"model": "claude-opus-5"}}) + "\n"
+                json.dumps({"message": {"model": "claude-opus-5-5"}}) + "\n"
             )
             self.assertEqual(
                 feedback.actual_model(
-                    "session-12345678", "opus-executor", root, "claude-opus-5"
+                    "session-12345678", "opus-executor", root, "claude-opus-5-5"
                 ),
                 "opus",
             )
             self.assertEqual(
                 feedback.actual_model(
-                    "session-12345678", "opus-executor", root, "claude-opus-4-8"
+                    "session-12345678", "opus-executor", root, "claude-opus-5"
                 ),
                 "unknown",
             )

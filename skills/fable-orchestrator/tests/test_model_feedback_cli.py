@@ -218,7 +218,7 @@ class DispatchTests(unittest.TestCase):
                         "--agent-type",
                         "opus-executor",
                         "--expected-model-id",
-                        "claude-opus-5",
+                        "claude-opus-5-5",
                     ],
                     path,
                 )

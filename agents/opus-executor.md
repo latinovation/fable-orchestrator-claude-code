@@ -1,8 +1,8 @@
 ---
 name: opus-executor
-description: Opus 5 implementation agent for complex, ambiguous, cross-cutting, or high-risk plans.
+description: Opus 5.5 implementation agent for complex, ambiguous, cross-cutting, or high-risk plans.
 tools: Read, Grep, Glob, Edit, Write, Bash
-model: claude-opus-5
+model: claude-opus-5-5
 maxTurns: 64
 ---
 

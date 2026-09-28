@@ -105,6 +105,8 @@ one executor runs the checks, writing only inside the session scratchpad. Such a
 - Four new tests (107 total): Sonnet runtime verification against the pinned id, the planner/SKILL.md
   routing consistency check, and the two suggestion rules above. The README check now covers every
   model id in `EXPECTED_MODEL_IDS`.
+- The Opus routing paragraph closes with an explicit rule: a `high-risk` classification always
+  routes to Opus 5.5. SKILL.md and `fable-planner` carry the sentence verbatim.
 
 ### 2026-09-03
 

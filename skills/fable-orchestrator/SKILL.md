@@ -1,6 +1,6 @@
 ---
 name: fable-orchestrator
-description: "Plan, implement, verify, audit, and learn from a coding task with strict model separation: Fable 5.1 orchestrates, plans, verifies, and audits; Sonnet or Opus 5.5 implements according to measured risk. Invoke explicitly when this workflow is wanted."
+description: "Plan, implement, verify, audit, and learn from a coding task with strict model separation: Fable 5.1 orchestrates, plans, verifies, and audits; Sonnet 5.5 or Opus 5.5 implements according to measured risk. Invoke explicitly when this workflow is wanted."
 disable-model-invocation: true
 argument-hint: "<task to implement>"
 model: claude-fable-5-1
@@ -13,7 +13,7 @@ Orchestrate `$ARGUMENTS`; never implement in the main conversation. If the argum
 ## Invariants
 
 - Fable 5.1 owns orchestration, investigation, planning, independent verification, and audit. Fable never edits project files or implements fixes.
-- Only `sonnet-executor` or the Opus 5.5-backed `opus-executor` may edit, following the approved plan or concrete audit findings.
+- Only the Sonnet 5.5-backed `sonnet-executor` or the Opus 5.5-backed `opus-executor` may edit, following the approved plan or concrete audit findings.
 - Never pass a per-invocation model override. If `CLAUDE_CODE_SUBAGENT_MODEL` is set, record a blocked run and stop because strict routing cannot be guaranteed.
 - Runtime transcript metadata must confirm every subagent model. A mismatch or `unknown` result blocks acceptance.
 - Start feedback before delegation. A terminated session must remain visible as incomplete rather than disappear from history.
@@ -47,7 +47,7 @@ Orchestrate `$ARGUMENTS`; never implement in the main conversation. If the argum
 8. Delegate the plan and original request to exactly one executor:
    - `EXECUTION: sonnet` -> `sonnet-executor`
    - `EXECUTION: opus` -> `opus-executor`
-9. Confirm the executor with `actual-model` and its exact agent type. For `opus-executor`, also pass `--expected-model-id claude-opus-5-5`; Sonnet remains on its latest-model alias. A mismatch blocks acceptance; preserve its changes for review and never conceal the mismatch. `actual-model` prints the reason for `unknown` on stderr; quote it in the blocked report.
+9. Confirm the executor with `actual-model` and its exact agent type, passing `--expected-model-id claude-sonnet-5-5` for `sonnet-executor` or `--expected-model-id claude-opus-5-5` for `opus-executor`. A mismatch blocks acceptance; preserve its changes for review and never conceal the mismatch. `actual-model` prints the reason for `unknown` on stderr; quote it in the blocked report.
 10. Fable independently reruns checks proportional to the risk. For React/Next where baseline ran, rerun `react_doctor.py scan` with the same base into the final snapshot in the same directory, then run:
 
     ```bash
@@ -74,9 +74,11 @@ A request that only verifies existing work still follows the same workflow: the 
 
 ## Routing
 
-Use Sonnet only for bounded, familiar, low-risk work with clear acceptance criteria. Use Opus for any cross-cutting behavior, more than three implementation files, ambiguity, unfamiliar code, risky refactoring/debugging, weak tests, or architecture/data/migration/auth/security/privacy/concurrency/money-sensitive logic. When uncertain, use Opus.
+Sonnet 5.5 is the default executor for `routine` work and for `complex` work without a hard Opus trigger: bounded code changes, data handling, content, and agentic tool use where investigation produced a concrete plan, clear acceptance criteria, and existing checks that can verify the result. File count alone never selects the model; a plan that touches many files in one repeated, well-understood pattern stays on Sonnet 5.5.
 
-History may promote a borderline task to Opus. It may suggest Sonnet only after at least three completed Opus runs with the same task class and exact controlled tag set that each passed with zero material findings and were rated `overpowered`. History never overrides a hard Opus trigger.
+Opus 5.5 is mandatory when any hard trigger applies: architecture, data model or migration, auth, security, privacy, concurrency, or money-sensitive logic; large-scale or cross-cutting refactoring that changes behavior across modules; ambiguity or a root cause that investigation could not resolve; a behavior change that no test, type check, build, or render check can verify; or multi-hour, long-horizon autonomous work. Uncertainty about whether a hard trigger applies routes to Opus; uncertainty only about size or familiarity routes to Sonnet 5.5.
+
+History may promote a borderline task to Opus. It may suggest Sonnet after at least three completed Opus runs with the same task class and exact controlled tag set that each passed with zero material findings. History never overrides a hard Opus trigger, and `high-risk` runs never produce a Sonnet suggestion.
 
 ## Boundaries
 

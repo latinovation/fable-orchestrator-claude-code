@@ -17,12 +17,12 @@ from pathlib import Path
 DEFAULT_PATH = Path.home() / ".claude" / "model-routing" / "history.jsonl"
 FABLE_MODEL_ID = "claude-fable-5-1"
 OPUS_MODEL_ID = "claude-opus-5-5"
-SONNET_MODEL_ALIAS = "sonnet"
+SONNET_MODEL_ID = "claude-sonnet-5-5"
 EXPECTED_MODEL_IDS = {
     "fable-planner": FABLE_MODEL_ID,
     "fable-auditor": FABLE_MODEL_ID,
     "opus-executor": OPUS_MODEL_ID,
-    "sonnet-executor": SONNET_MODEL_ALIAS,
+    "sonnet-executor": SONNET_MODEL_ID,
 }
 MODEL_VALUES = {"sonnet", "opus", "fable", "haiku", "unknown"}
 ENUMS = {
@@ -220,14 +220,13 @@ def summarize(records: list[dict[str, object]], invalid_count: int = 0, limit: i
         if len(items) < 3:
             continue
         underpowered = sum(item["model_fit"] == "underpowered" for item in items)
-        overpowered = sum(item["model_fit"] == "overpowered" for item in items)
         clean_passes = sum(
             item["outcome"] == "pass" and int(item["material_findings"]) == 0 for item in items
         )
         label = f"{task_class}/{','.join(tags) or 'untagged'}"
         if model == "sonnet" and underpowered >= 2:
             recommendations.append(f"Prefer Opus for future {label} tasks comparable to these Sonnet runs.")
-        if model == "opus" and overpowered >= 3 and clean_passes == len(items):
+        if model == "opus" and task_class != "high-risk" and clean_passes == len(items):
             recommendations.append(
                 f"Consider Sonnet for low-risk {label} tasks; hard-risk rules still win."
             )

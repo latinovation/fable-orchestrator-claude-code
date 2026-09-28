@@ -11,8 +11,9 @@ from support import feedback
 
 SESSION_ID = "session-actual-model-1"
 OPUS_ID = "claude-opus-5-5"
-SONNET_ID = "claude-sonnet-5"
+SONNET_ID = "claude-sonnet-5-5"
 SYNTHETIC_ID = "<synthetic>"
+OLDER_SONNET_ID = "claude-sonnet-4-5"
 
 
 def write_subagent(
@@ -106,6 +107,24 @@ class ActualModelTests(unittest.TestCase):
             write_subagent(subagents, "agent-1", agent_type="sonnet-executor", models=[SONNET_ID])
             alias, reason, _, err = detect(root, agent_type="sonnet-executor")
             self.assertEqual((alias, reason, err), ("sonnet", "", ""))
+
+    def test_sonnet_executor_is_verified_against_the_pinned_id(self):
+        with session_tree() as (root, subagents):
+            write_subagent(subagents, "agent-1", agent_type="sonnet-executor", models=[SONNET_ID])
+            alias, reason, _, err = detect(
+                root, agent_type="sonnet-executor", expected=feedback.SONNET_MODEL_ID
+            )
+            self.assertEqual((alias, reason, err), ("sonnet", "", ""))
+
+        for stale_id in (OLDER_SONNET_ID, f"{SONNET_ID}-20260928"):
+            with self.subTest(model_id=stale_id), session_tree() as (root, subagents):
+                write_subagent(subagents, "agent-1", agent_type="sonnet-executor", models=[stale_id])
+                alias, reason, _, err = detect(
+                    root, agent_type="sonnet-executor", expected=feedback.SONNET_MODEL_ID
+                )
+                self.assertEqual(alias, "unknown")
+                self.assertIn("does not match expected claude-sonnet-5-5", reason)
+                self.assertIn("actual-model unknown:", err)
 
     def test_top_level_model_field_is_read(self):
         with session_tree() as (root, subagents):

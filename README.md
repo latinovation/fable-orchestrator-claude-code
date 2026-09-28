@@ -1,12 +1,12 @@
 # Fable Orchestrator for Claude Code
 
-Portable export updated on 2026-09-03. It contains the skill, four global agents, deterministic helpers, and regression tests. It does not contain routing history, transcripts, project code, caches, snapshots, or credentials.
+Portable export updated on 2026-09-28. It contains the skill, four global agents, deterministic helpers, and regression tests. It does not contain routing history, transcripts, project code, caches, snapshots, or credentials.
 
 Licensed under the [MIT License](LICENSE).
 
 ## Requirements
 
-- Claude Code with access to `claude-fable-5-1`, `claude-opus-5-5`, and the `sonnet` model alias.
+- Claude Code with access to `claude-fable-5-1`, `claude-opus-5-5`, and `claude-sonnet-5-5`.
 - Python 3.10 or newer.
 - Node/npm only if the user approves the pinned React Doctor fallback.
 
@@ -57,9 +57,13 @@ The two package-only checks (exact `agents/` contents and this README) skip ther
 /fable-orchestrator <task>
 ```
 
-The skill is explicit-only. Fable 5.1 orchestrates, plans, verifies, and audits; Sonnet or Opus 5.5
-implements according to risk. React Doctor prefers an existing local installation. Its network
-fallback requires approval and is pinned to `react-doctor@0.9.12`.
+The skill is explicit-only. Fable 5.1 orchestrates, plans, verifies, and audits; Sonnet 5.5 or Opus
+5.5 implements according to risk. Sonnet 5.5 is the default executor for `routine` work and for
+`complex` work without a hard Opus trigger; Opus 5.5 is mandatory when a hard trigger applies
+(architecture, data model or migration, auth, security, privacy, concurrency, money-sensitive logic,
+cross-cutting refactoring, unresolved ambiguity, unverifiable behavior, or long-horizon work), and
+file count alone never selects the model. React Doctor prefers an existing local installation. Its
+network fallback requires approval and is pinned to `react-doctor@0.9.12`.
 
 A verification-only request follows the same workflow: the planner still emits an executor token and
 one executor runs the checks, writing only inside the session scratchpad. Such a run is recorded with
@@ -86,6 +90,21 @@ one executor runs the checks, writing only inside the session scratchpad. Such a
   ambiguous result must block acceptance instead of guessing.
 
 ## Changelog
+
+### 2026-09-28
+
+- `sonnet-executor` is pinned to `claude-sonnet-5-5`: `SONNET_MODEL_ID` replaces the `sonnet` alias
+  in `EXPECTED_MODEL_IDS`, and step 9 of the workflow verifies the executor at runtime with
+  `actual-model --expected-model-id claude-sonnet-5-5`, as it already did for Opus and Fable.
+- Routing rewritten: Sonnet 5.5 is the default executor for `routine` work and for `complex` work
+  without a hard Opus trigger; Opus 5.5 is mandatory when a hard trigger applies. File count alone no
+  longer forces Opus. `fable-planner` repeats the three SKILL.md routing paragraphs verbatim.
+- The learned Opus-to-Sonnet suggestion in `summary` no longer requires `overpowered` ratings: three
+  comparable Opus runs that each passed with zero material findings are enough, and it never fires
+  for `high-risk` runs.
+- Four new tests (107 total): Sonnet runtime verification against the pinned id, the planner/SKILL.md
+  routing consistency check, and the two suggestion rules above. The README check now covers every
+  model id in `EXPECTED_MODEL_IDS`.
 
 ### 2026-09-03
 

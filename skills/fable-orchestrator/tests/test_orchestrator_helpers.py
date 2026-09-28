@@ -42,6 +42,25 @@ class FeedbackTests(unittest.TestCase):
             matching.append(record)
         self.assertIn("Prefer Opus", feedback.summarize(matching))
 
+    def test_three_clean_opus_runs_suggest_sonnet_without_overpowered_ratings(self):
+        clean = [completed(f"opus-clean-{index:08d}", model="opus", tags=["docs"]) for index in range(3)]
+        self.assertTrue(all(record["model_fit"] == "right-sized" for record in clean))
+        self.assertIn("Consider Sonnet", feedback.summarize(clean))
+        self.assertNotIn("Consider Sonnet", feedback.summarize(clean[:2]))
+        self.assertNotIn(
+            "Consider Sonnet", feedback.summarize([{**clean[0], "material_findings": 1}, *clean[1:]])
+        )
+        self.assertNotIn(
+            "Consider Sonnet", feedback.summarize([{**clean[0], "outcome": "fix_required"}, *clean[1:]])
+        )
+
+    def test_high_risk_opus_runs_never_suggest_sonnet(self):
+        records = [completed(f"opus-auth-{index:08d}", model="opus", tags=["auth"]) for index in range(3)]
+        for task_class, expected in (("complex", True), ("high-risk", False)):
+            with self.subTest(task_class=task_class):
+                classified = [{**record, "task_class": task_class} for record in records]
+                self.assertEqual("Consider Sonnet" in feedback.summarize(classified), expected)
+
     def test_react_doctor_versions_are_grouped_separately(self):
         first = completed("doctor-v1-0001", version="1.0.0")
         first.update(react_doctor_baseline_score=80, react_doctor_final_score=85, react_doctor_delta=5)

@@ -21,6 +21,8 @@ EXPECTED_TOOLS = {
     "sonnet-executor": EXECUTION_TOOLS,
 }
 EXPECTED_MODEL_ID_FLAG = re.compile(r"--expected-model-id ([A-Za-z0-9._-]+)")
+ROUTING_HEADING = "## Routing"
+ROUTING_END_HEADING = "## Boundaries"
 NEGATIVE_FIXTURE = """---
 name: opus-executor
 description: Agent definition that forgot to pin a model.
@@ -49,6 +51,12 @@ def missing_expected_agents(agents_dir: Path) -> list[str]:
         for name in feedback.EXPECTED_MODEL_IDS
         if not (agents_dir / f"{name}.md").is_file()
     )
+
+
+def routing_paragraphs(skill_text: str) -> list[str]:
+    """Return the prose paragraphs of the SKILL.md routing section."""
+    section = skill_text.split(ROUTING_HEADING, 1)[1].split(ROUTING_END_HEADING, 1)[0]
+    return [paragraph.strip() for paragraph in section.split("\n\n") if paragraph.strip()]
 
 
 IS_PACKAGE = is_package_root(PACKAGE_ROOT)
@@ -85,7 +93,7 @@ class AgentFrontmatterTests(unittest.TestCase):
                 "fable-planner": feedback.FABLE_MODEL_ID,
                 "fable-auditor": feedback.FABLE_MODEL_ID,
                 "opus-executor": feedback.OPUS_MODEL_ID,
-                "sonnet-executor": feedback.SONNET_MODEL_ALIAS,
+                "sonnet-executor": feedback.SONNET_MODEL_ID,
             },
         )
 
@@ -143,15 +151,23 @@ class SkillDocumentTests(unittest.TestCase):
 
     def test_skill_only_verifies_the_declared_model_ids(self):
         found = set(EXPECTED_MODEL_ID_FLAG.findall(SKILL_PATH.read_text()))
-        self.assertEqual(found, {feedback.FABLE_MODEL_ID, feedback.OPUS_MODEL_ID})
+        self.assertEqual(found, set(feedback.EXPECTED_MODEL_IDS.values()))
 
-    def test_readme_documents_both_verified_model_ids(self):
+    def test_planner_repeats_the_skill_routing_rules(self):
+        paragraphs = routing_paragraphs(SKILL_PATH.read_text())
+        self.assertEqual(len(paragraphs), 3)
+        planner_text = (AGENTS_DIR / "fable-planner.md").read_text()
+        for paragraph in paragraphs:
+            with self.subTest(paragraph=paragraph[:40]):
+                self.assertIn(paragraph, planner_text)
+
+    def test_readme_documents_every_verified_model_id(self):
         if not IS_PACKAGE:
             self.skipTest(INSTALLED_README_SKIP)
         if not README_PATH.is_file():
             self.skipTest("README.md is not part of an installed skill")
         text = README_PATH.read_text()
-        for model_id in (feedback.FABLE_MODEL_ID, feedback.OPUS_MODEL_ID):
+        for model_id in sorted(set(feedback.EXPECTED_MODEL_IDS.values())):
             with self.subTest(model_id=model_id):
                 self.assertIn(model_id, text)
 

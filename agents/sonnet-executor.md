@@ -1,8 +1,8 @@
 ---
 name: sonnet-executor
-description: Sonnet implementation agent for bounded, familiar, low-risk plans.
+description: Sonnet 5.5 implementation agent for routine and complex plans without a hard Opus trigger.
 tools: Read, Grep, Glob, Edit, Write, Bash
-model: sonnet
+model: claude-sonnet-5-5
 maxTurns: 48
 ---
 

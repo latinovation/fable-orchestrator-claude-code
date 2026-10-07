@@ -19,6 +19,7 @@ EXPECTED_TOOLS = {
     "fable-auditor": PLANNING_TOOLS,
     "opus-executor": EXECUTION_TOOLS,
     "sonnet-executor": EXECUTION_TOOLS,
+    "haiku-executor": EXECUTION_TOOLS,
 }
 EXPECTED_MODEL_ID_FLAG = re.compile(r"--expected-model-id ([A-Za-z0-9._-]+)")
 ROUTING_HEADING = "## Routing"
@@ -94,6 +95,7 @@ class AgentFrontmatterTests(unittest.TestCase):
                 "fable-auditor": feedback.FABLE_MODEL_ID,
                 "opus-executor": feedback.OPUS_MODEL_ID,
                 "sonnet-executor": feedback.SONNET_MODEL_ID,
+                "haiku-executor": feedback.HAIKU_MODEL_ID,
             },
         )
 
@@ -155,7 +157,7 @@ class SkillDocumentTests(unittest.TestCase):
 
     def test_planner_repeats_the_skill_routing_rules(self):
         paragraphs = routing_paragraphs(SKILL_PATH.read_text())
-        self.assertEqual(len(paragraphs), 3)
+        self.assertEqual(len(paragraphs), 4)
         planner_text = (AGENTS_DIR / "fable-planner.md").read_text()
         for paragraph in paragraphs:
             with self.subTest(paragraph=paragraph[:40]):

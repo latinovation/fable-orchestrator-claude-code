@@ -12,6 +12,7 @@ from support import feedback
 SESSION_ID = "session-actual-model-1"
 OPUS_ID = "claude-opus-5-5"
 SONNET_ID = "claude-sonnet-5-5"
+HAIKU_ID = "claude-haiku-5-5"
 SYNTHETIC_ID = "<synthetic>"
 OLDER_SONNET_ID = "claude-sonnet-4-5"
 
@@ -107,6 +108,20 @@ class ActualModelTests(unittest.TestCase):
             write_subagent(subagents, "agent-1", agent_type="sonnet-executor", models=[SONNET_ID])
             alias, reason, _, err = detect(root, agent_type="sonnet-executor")
             self.assertEqual((alias, reason, err), ("sonnet", "", ""))
+
+    def test_haiku_executor_is_verified_against_the_pinned_id(self):
+        cases = (
+            ([HAIKU_ID], "haiku"),
+            ([SONNET_ID], "unknown"),
+            ([f"{HAIKU_ID}-20261007"], "unknown"),
+        )
+        for models, expected in cases:
+            with self.subTest(models=models), session_tree() as (root, subagents):
+                write_subagent(subagents, "agent-1", agent_type="haiku-executor", models=models)
+                alias, _, _, _ = detect(
+                    root, agent_type="haiku-executor", expected=feedback.HAIKU_MODEL_ID
+                )
+                self.assertEqual(alias, expected)
 
     def test_sonnet_executor_is_verified_against_the_pinned_id(self):
         with session_tree() as (root, subagents):

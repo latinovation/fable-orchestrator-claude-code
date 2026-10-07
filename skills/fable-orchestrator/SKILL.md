@@ -1,6 +1,6 @@
 ---
 name: fable-orchestrator
-description: "Plan, implement, verify, audit, and learn from a coding task with strict model separation: Fable 5.1 orchestrates, plans, verifies, and audits; Sonnet 5.5 or Opus 5.5 implements according to measured risk. Invoke explicitly when this workflow is wanted."
+description: "Plan, implement, verify, audit, and learn from a coding task with strict model separation: Fable 5.1 orchestrates, plans, verifies, and audits; Haiku 5.5, Sonnet 5.5 or Opus 5.5 implements according to measured risk. Invoke explicitly when this workflow is wanted."
 disable-model-invocation: true
 argument-hint: "<task to implement>"
 model: claude-fable-5-1
@@ -13,7 +13,7 @@ Orchestrate `$ARGUMENTS`; never implement in the main conversation. If the argum
 ## Invariants
 
 - Fable 5.1 owns orchestration, investigation, planning, independent verification, and audit. Fable never edits project files or implements fixes.
-- Only the Sonnet 5.5-backed `sonnet-executor` or the Opus 5.5-backed `opus-executor` may edit, following the approved plan or concrete audit findings.
+- Only the Haiku 5.5-backed `haiku-executor`, the Sonnet 5.5-backed `sonnet-executor` or the Opus 5.5-backed `opus-executor` may edit, following the approved plan or concrete audit findings.
 - Never pass a per-invocation model override. If `CLAUDE_CODE_SUBAGENT_MODEL` is set, record a blocked run and stop because strict routing cannot be guaranteed.
 - Runtime transcript metadata must confirm every subagent model. A mismatch or `unknown` result blocks acceptance.
 - Start feedback before delegation. A terminated session must remain visible as incomplete rather than disappear from history.
@@ -45,9 +45,10 @@ Orchestrate `$ARGUMENTS`; never implement in the main conversation. If the argum
 
    It must return `fable`; otherwise record a planner-stage fallback and stop. `actual-model` prints the reason for `unknown` on stderr; quote it in the blocked report.
 8. Delegate the plan and original request to exactly one executor:
+   - `EXECUTION: haiku` -> `haiku-executor`
    - `EXECUTION: sonnet` -> `sonnet-executor`
    - `EXECUTION: opus` -> `opus-executor`
-9. Confirm the executor with `actual-model` and its exact agent type, passing `--expected-model-id claude-sonnet-5-5` for `sonnet-executor` or `--expected-model-id claude-opus-5-5` for `opus-executor`. A mismatch blocks acceptance; preserve its changes for review and never conceal the mismatch. `actual-model` prints the reason for `unknown` on stderr; quote it in the blocked report.
+9. Confirm the executor with `actual-model` and its exact agent type, passing `--expected-model-id claude-haiku-5-5` for `haiku-executor`, `--expected-model-id claude-sonnet-5-5` for `sonnet-executor` or `--expected-model-id claude-opus-5-5` for `opus-executor`. A mismatch blocks acceptance; preserve its changes for review and never conceal the mismatch. `actual-model` prints the reason for `unknown` on stderr; quote it in the blocked report.
 10. Fable independently reruns checks proportional to the risk. For React/Next where baseline ran, rerun `react_doctor.py scan` with the same base into the final snapshot in the same directory, then run:
 
     ```bash
@@ -60,7 +61,7 @@ Orchestrate `$ARGUMENTS`; never implement in the main conversation. If the argum
 13. Record the final `PERFORMANCE_JSON`, overriding self-reported runtime models with transcript evidence:
 
     ```bash
-    python3 "${CLAUDE_SKILL_DIR}/scripts/model_feedback.py" record --run-id <run-id> --planner-actual-model fable --actual-model <sonnet-or-opus> --auditor-actual-model fable <<'JSON'
+    python3 "${CLAUDE_SKILL_DIR}/scripts/model_feedback.py" record --run-id <run-id> --planner-actual-model fable --actual-model <haiku-sonnet-or-opus> --auditor-actual-model fable <<'JSON'
     {PERFORMANCE_JSON object only}
     JSON
     ```
@@ -70,15 +71,17 @@ Orchestrate `$ARGUMENTS`; never implement in the main conversation. If the argum
 
 ## Verification-only tasks
 
-A request that only verifies existing work still follows the same workflow: the planner emits an executor token and exactly one executor runs the checks. That executor writes only inside the session scratchpad, and any proof-of-concept run of these scripts must point `CLAUDE_MODEL_FEEDBACK_PATH` at that scratchpad so the real history stays untouched. Record the run normally with `outcome: pass`, `files_changed: 0`, and a controlled tag such as `verification`.
+A request that only verifies existing work still follows the same workflow: the planner emits an executor token and exactly one executor runs the checks. When the plan lists the exact commands to run, `haiku-executor` is the right fit; when the executor must decide what to check, use Sonnet 5.5 or Opus 5.5 per the routing rules. That executor writes only inside the session scratchpad, and any proof-of-concept run of these scripts must point `CLAUDE_MODEL_FEEDBACK_PATH` at that scratchpad so the real history stays untouched. Record the run normally with `outcome: pass`, `files_changed: 0`, and a controlled tag such as `verification`.
 
 ## Routing
 
 Sonnet 5.5 is the default executor for `routine` work and for `complex` work without a hard Opus trigger: bounded code changes, data handling, content, and agentic tool use where investigation produced a concrete plan, clear acceptance criteria, and existing checks that can verify the result. File count alone never selects the model; a plan that touches many files in one repeated, well-understood pattern stays on Sonnet 5.5.
 
-Opus 5.5 is mandatory when any hard trigger applies: architecture, data model or migration, auth, security, privacy, concurrency, or money-sensitive logic; large-scale or cross-cutting refactoring that changes behavior across modules; ambiguity or a root cause that investigation could not resolve; a behavior change that no test, type check, build, or render check can verify; or multi-hour, long-horizon autonomous work. Uncertainty about whether a hard trigger applies routes to Opus; uncertainty only about size or familiarity routes to Sonnet 5.5. A `high-risk` classification always routes to Opus 5.5.
+Haiku 5.5 replaces Sonnet 5.5 only for `routine` work with no hard Opus trigger where speed matters more than judgment: the plan is fully prescriptive (exact files and edits, no open design decision), the change is mechanical (renames, formatting, boilerplate from an existing pattern, copy or docs edits, fixed-schema data transforms, running a listed set of checks), and a test, type check, build, or render check verifies the result quickly. If the executor would need to decide something the plan does not state, route to Sonnet 5.5.
 
-History may promote a borderline task to Opus. It may suggest Sonnet after at least three completed Opus runs with the same task class and exact controlled tag set that each passed with zero material findings. History never overrides a hard Opus trigger, and `high-risk` runs never produce a Sonnet suggestion.
+Opus 5.5 is mandatory when any hard trigger applies: architecture, data model or migration, auth, security, privacy, concurrency, or money-sensitive logic; large-scale or cross-cutting refactoring that changes behavior across modules; ambiguity or a root cause that investigation could not resolve; a behavior change that no test, type check, build, or render check can verify; or multi-hour, long-horizon autonomous work. Uncertainty about whether a hard trigger applies routes to Opus; uncertainty only about size or familiarity routes to Sonnet 5.5, and uncertainty about whether Haiku 5.5 suffices routes to Sonnet 5.5. A `high-risk` classification always routes to Opus 5.5.
+
+History may promote a borderline task one tier (Haiku 5.5 to Sonnet 5.5, Sonnet 5.5 to Opus). It may suggest Sonnet after at least three completed Opus runs with the same task class and exact controlled tag set that each passed with zero material findings. History never overrides a hard Opus trigger, and `high-risk` runs never produce a Sonnet suggestion.
 
 ## Boundaries
 

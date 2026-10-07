@@ -17,17 +17,19 @@ from pathlib import Path
 DEFAULT_PATH = Path.home() / ".claude" / "model-routing" / "history.jsonl"
 FABLE_MODEL_ID = "claude-fable-5-1"
 OPUS_MODEL_ID = "claude-opus-5-5"
+HAIKU_MODEL_ID = "claude-haiku-5-5"
 SONNET_MODEL_ID = "claude-sonnet-5-5"
 EXPECTED_MODEL_IDS = {
     "fable-planner": FABLE_MODEL_ID,
     "fable-auditor": FABLE_MODEL_ID,
     "opus-executor": OPUS_MODEL_ID,
     "sonnet-executor": SONNET_MODEL_ID,
+    "haiku-executor": HAIKU_MODEL_ID,
 }
 MODEL_VALUES = {"sonnet", "opus", "fable", "haiku", "unknown"}
 ENUMS = {
     "task_class": {"routine", "complex", "high-risk", "unknown"},
-    "planned_model": {"sonnet", "opus", "unknown"},
+    "planned_model": {"haiku", "sonnet", "opus", "unknown"},
     "actual_model": MODEL_VALUES,
     "planner_actual_model": MODEL_VALUES,
     "auditor_actual_model": MODEL_VALUES,
@@ -130,7 +132,7 @@ def validate(raw: object, *, legacy_run_id: str | None = None) -> dict[str, obje
     record["auditor_agent"] = "fable-auditor"
     record["auditor_requested_model"] = "fable"
     planned = record["planned_model"]
-    record["executor_agent"] = f"{planned}-executor" if planned in {"sonnet", "opus"} else "not-run"
+    record["executor_agent"] = f"{planned}-executor" if planned in {"haiku", "sonnet", "opus"} else "not-run"
     return record
 
 
@@ -186,7 +188,7 @@ def summarize(records: list[dict[str, object]], invalid_count: int = 0, limit: i
     for record in records:
         by_model[str(record["actual_model"])].append(record)
     for record in completed:
-        if record["actual_model"] in {"sonnet", "opus"}:
+        if record["actual_model"] in {"haiku", "sonnet", "opus"}:
             comparable[comparable_key(record)].append(record)
 
     lines = [
@@ -224,6 +226,8 @@ def summarize(records: list[dict[str, object]], invalid_count: int = 0, limit: i
             item["outcome"] == "pass" and int(item["material_findings"]) == 0 for item in items
         )
         label = f"{task_class}/{','.join(tags) or 'untagged'}"
+        if model == "haiku" and underpowered >= 2:
+            recommendations.append(f"Prefer Sonnet for future {label} tasks comparable to these Haiku runs.")
         if model == "sonnet" and underpowered >= 2:
             recommendations.append(f"Prefer Opus for future {label} tasks comparable to these Sonnet runs.")
         if model == "opus" and task_class != "high-risk" and clean_passes == len(items):

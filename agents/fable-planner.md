@@ -18,11 +18,15 @@ Return:
 
 Sonnet 5.5 is the default executor for `routine` work and for `complex` work without a hard Opus trigger: bounded code changes, data handling, content, and agentic tool use where investigation produced a concrete plan, clear acceptance criteria, and existing checks that can verify the result. File count alone never selects the model; a plan that touches many files in one repeated, well-understood pattern stays on Sonnet 5.5.
 
-Opus 5.5 is mandatory when any hard trigger applies: architecture, data model or migration, auth, security, privacy, concurrency, or money-sensitive logic; large-scale or cross-cutting refactoring that changes behavior across modules; ambiguity or a root cause that investigation could not resolve; a behavior change that no test, type check, build, or render check can verify; or multi-hour, long-horizon autonomous work. Uncertainty about whether a hard trigger applies routes to Opus; uncertainty only about size or familiarity routes to Sonnet 5.5. A `high-risk` classification always routes to Opus 5.5.
+Haiku 5.5 replaces Sonnet 5.5 only for `routine` work with no hard Opus trigger where speed matters more than judgment: the plan is fully prescriptive (exact files and edits, no open design decision), the change is mechanical (renames, formatting, boilerplate from an existing pattern, copy or docs edits, fixed-schema data transforms, running a listed set of checks), and a test, type check, build, or render check verifies the result quickly. If the executor would need to decide something the plan does not state, route to Sonnet 5.5.
 
-History may promote a borderline task to Opus. It may suggest Sonnet after at least three completed Opus runs with the same task class and exact controlled tag set that each passed with zero material findings. History never overrides a hard Opus trigger, and `high-risk` runs never produce a Sonnet suggestion.
+Opus 5.5 is mandatory when any hard trigger applies: architecture, data model or migration, auth, security, privacy, concurrency, or money-sensitive logic; large-scale or cross-cutting refactoring that changes behavior across modules; ambiguity or a root cause that investigation could not resolve; a behavior change that no test, type check, build, or render check can verify; or multi-hour, long-horizon autonomous work. Uncertainty about whether a hard trigger applies routes to Opus; uncertainty only about size or familiarity routes to Sonnet 5.5, and uncertainty about whether Haiku 5.5 suffices routes to Sonnet 5.5. A `high-risk` classification always routes to Opus 5.5.
+
+History may promote a borderline task one tier (Haiku 5.5 to Sonnet 5.5, Sonnet 5.5 to Opus). It may suggest Sonnet after at least three completed Opus runs with the same task class and exact controlled tag set that each passed with zero material findings. History never overrides a hard Opus trigger, and `high-risk` runs never produce a Sonnet suggestion.
 
 End with exactly one of:
+
+`EXECUTION: haiku`
 
 `EXECUTION: sonnet`
 

@@ -42,6 +42,16 @@ class FeedbackTests(unittest.TestCase):
             matching.append(record)
         self.assertIn("Prefer Opus", feedback.summarize(matching))
 
+    def test_underpowered_haiku_runs_prefer_sonnet_and_haiku_is_a_valid_plan(self):
+        runs = []
+        for index in range(3):
+            record = completed(f"haiku-weak-{index:08d}", model="haiku", tags=["docs"])
+            record["model_fit"] = "underpowered"
+            record["planned_model"] = "haiku"
+            runs.append(record)
+        self.assertIn("Prefer Sonnet", feedback.summarize(runs))
+        self.assertEqual(feedback.validate(runs[0])["executor_agent"], "haiku-executor")
+
     def test_three_clean_opus_runs_suggest_sonnet_without_overpowered_ratings(self):
         clean = [completed(f"opus-clean-{index:08d}", model="opus", tags=["docs"]) for index in range(3)]
         self.assertTrue(all(record["model_fit"] == "right-sized" for record in clean))

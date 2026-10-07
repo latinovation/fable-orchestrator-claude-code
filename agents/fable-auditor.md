@@ -20,7 +20,7 @@ After the verdict, return exactly one single-line `PERFORMANCE_JSON: {...}` obje
 
 - `task_class`: `routine`, `complex`, or `high-risk`.
 - `tags`: up to 8 lowercase alphanumeric or hyphenated category labels such as `ui`, `api`, `migration`, `auth`, `security`, `database`, `refactor`, or `debugging`.
-- `planned_model`: `sonnet` or `opus`.
+- `planned_model`: `haiku`, `sonnet`, or `opus`.
 - `planner_actual_model`: `fable`, `sonnet`, `opus`, `haiku`, or `unknown` from supplied runtime metadata.
 - `actual_model`: the executor model confirmed by runtime metadata; otherwise `unknown`.
 - `auditor_actual_model`: always `unknown`; the orchestrator replaces it after this agent exits and checks runtime metadata.

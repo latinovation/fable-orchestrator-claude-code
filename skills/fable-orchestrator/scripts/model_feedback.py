@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 DEFAULT_PATH = Path.home() / ".claude" / "model-routing" / "history.jsonl"
-FABLE_MODEL_ID = "claude-fable-5-1"
+FABLE_MODEL_ID = "claude-fable-5-2"
 OPUS_MODEL_ID = "claude-opus-5-5"
 HAIKU_MODEL_ID = "claude-haiku-5-5"
 SONNET_MODEL_ID = "claude-sonnet-5-5"

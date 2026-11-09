@@ -1,12 +1,12 @@
 # Fable Orchestrator for Claude Code
 
-Portable export updated on 2026-10-07. It contains the skill, four global agents, deterministic helpers, and regression tests. It does not contain routing history, transcripts, project code, caches, snapshots, or credentials.
+Portable export updated on 2026-11-09. It contains the skill, four global agents, deterministic helpers, and regression tests. It does not contain routing history, transcripts, project code, caches, snapshots, or credentials.
 
 Licensed under the [MIT License](LICENSE).
 
 ## Requirements
 
-- Claude Code with access to `claude-fable-5-1`, `claude-opus-5-5`, `claude-sonnet-5-5`, and `claude-haiku-5-5`.
+- Claude Code with access to `claude-fable-5-2`, `claude-opus-5-5`, `claude-sonnet-5-5`, and `claude-haiku-5-5`.
 - Python 3.10 or newer.
 - Node/npm only if the user approves the pinned React Doctor fallback.
 
@@ -57,7 +57,7 @@ The two package-only checks (exact `agents/` contents and this README) skip ther
 /fable-orchestrator <task>
 ```
 
-The skill is explicit-only. Fable 5.1 orchestrates, plans, verifies, and audits; Haiku 5.5, Sonnet 5.5 or Opus
+The skill is explicit-only. Fable 5.2 orchestrates, plans, verifies, and audits; Haiku 5.5, Sonnet 5.5 or Opus
 5.5 implements according to risk. Sonnet 5.5 is the default executor for `routine` work and for
 `complex` work without a hard Opus trigger; Opus 5.5 is mandatory when a hard trigger applies
 (architecture, data model or migration, auth, security, privacy, concurrency, money-sensitive logic,
@@ -90,6 +90,10 @@ one executor runs the checks, writing only inside the session scratchpad. Such a
   ambiguous result must block acceptance instead of guessing.
 
 ## Changelog
+
+### 2026-11-09
+
+- Fable 5.1 to Fable 5.2: `fable-planner`, `fable-auditor`, the skill and `FABLE_MODEL_ID` now pin `claude-fable-5-2`. Executors unchanged; 109 tests.
 
 ### 2026-10-07
 

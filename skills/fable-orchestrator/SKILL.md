@@ -1,9 +1,9 @@
 ---
 name: fable-orchestrator
-description: "Plan, implement, verify, audit, and learn from a coding task with strict model separation: Fable 5.1 orchestrates, plans, verifies, and audits; Haiku 5.5, Sonnet 5.5 or Opus 5.5 implements according to measured risk. Invoke explicitly when this workflow is wanted."
+description: "Plan, implement, verify, audit, and learn from a coding task with strict model separation: Fable 5.2 orchestrates, plans, verifies, and audits; Haiku 5.5, Sonnet 5.5 or Opus 5.5 implements according to measured risk. Invoke explicitly when this workflow is wanted."
 disable-model-invocation: true
 argument-hint: "<task to implement>"
-model: claude-fable-5-1
+model: claude-fable-5-2
 ---
 
 # Fable Orchestrator
@@ -12,7 +12,7 @@ Orchestrate `$ARGUMENTS`; never implement in the main conversation. If the argum
 
 ## Invariants
 
-- Fable 5.1 owns orchestration, investigation, planning, independent verification, and audit. Fable never edits project files or implements fixes.
+- Fable 5.2 owns orchestration, investigation, planning, independent verification, and audit. Fable never edits project files or implements fixes.
 - Only the Haiku 5.5-backed `haiku-executor`, the Sonnet 5.5-backed `sonnet-executor` or the Opus 5.5-backed `opus-executor` may edit, following the approved plan or concrete audit findings.
 - Never pass a per-invocation model override. If `CLAUDE_CODE_SUBAGENT_MODEL` is set, record a blocked run and stop because strict routing cannot be guaranteed.
 - Runtime transcript metadata must confirm every subagent model. A mismatch or `unknown` result blocks acceptance.
@@ -40,7 +40,7 @@ Orchestrate `$ARGUMENTS`; never implement in the main conversation. If the argum
 7. Confirm the planner runtime model:
 
    ```bash
-   python3 "${CLAUDE_SKILL_DIR}/scripts/model_feedback.py" actual-model --session-id "${CLAUDE_SESSION_ID}" --agent-type fable-planner --expected-model-id claude-fable-5-1
+   python3 "${CLAUDE_SKILL_DIR}/scripts/model_feedback.py" actual-model --session-id "${CLAUDE_SESSION_ID}" --agent-type fable-planner --expected-model-id claude-fable-5-2
    ```
 
    It must return `fable`; otherwise record a planner-stage fallback and stop. `actual-model` prints the reason for `unknown` on stderr; quote it in the blocked report.
@@ -57,7 +57,7 @@ Orchestrate `$ARGUMENTS`; never implement in the main conversation. If the argum
 
     Only a comparable same-version result may supply a score delta. New finding fingerprints, not repository-wide debt, determine regression.
 11. Delegate the request, plan, starting status, current diff, runtime-confirmed models, checks, repair history, and React Doctor comparison to a fresh `fable-auditor`. The auditor is statically read-only and receives evidence rather than Bash access.
-12. Confirm `fable-auditor` with `actual-model --expected-model-id claude-fable-5-1`; require `fable`. `actual-model` prints the reason for `unknown` on stderr; quote it in the blocked report. On `FIX_REQUIRED`, send only concrete findings to the same selected executor model, rerun affected checks and React Doctor, then use a fresh auditor. Allow at most two repair cycles. `BLOCKED` ends the run: record it with `fallback --run-id <run-id> --stage auditor --outcome blocked` (never `record`). An unresolved second repair is recorded with `record` using the auditor's `PERFORMANCE_JSON` (`outcome: fix_required`). Neither may claim success.
+12. Confirm `fable-auditor` with `actual-model --expected-model-id claude-fable-5-2`; require `fable`. `actual-model` prints the reason for `unknown` on stderr; quote it in the blocked report. On `FIX_REQUIRED`, send only concrete findings to the same selected executor model, rerun affected checks and React Doctor, then use a fresh auditor. Allow at most two repair cycles. `BLOCKED` ends the run: record it with `fallback --run-id <run-id> --stage auditor --outcome blocked` (never `record`). An unresolved second repair is recorded with `record` using the auditor's `PERFORMANCE_JSON` (`outcome: fix_required`). Neither may claim success.
 13. Record the final `PERFORMANCE_JSON`, overriding self-reported runtime models with transcript evidence:
 
     ```bash

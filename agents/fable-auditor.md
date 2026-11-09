@@ -1,8 +1,8 @@
 ---
 name: fable-auditor
-description: Read-only Fable 5.1 verifier and auditor for completed implementation work.
+description: Read-only Fable 5.2 verifier and auditor for completed implementation work.
 tools: Read, Grep, Glob
-model: claude-fable-5-1
+model: claude-fable-5-2
 maxTurns: 32
 ---
 

@@ -146,9 +146,9 @@ class ActualModelTests(unittest.TestCase):
             subagents.mkdir(parents=True, exist_ok=True)
             (subagents / "agent-1.meta.json").write_text(json.dumps({"agentType": "fable-planner"}))
             (subagents / "agent-1.jsonl").write_text(
-                json.dumps({"model": "claude-fable-5-1"}) + "\n"
+                json.dumps({"model": "claude-fable-5-2"}) + "\n"
             )
-            alias, reason, _, _ = detect(root, agent_type="fable-planner", expected="claude-fable-5-1")
+            alias, reason, _, _ = detect(root, agent_type="fable-planner", expected="claude-fable-5-2")
             self.assertEqual((alias, reason), ("fable", ""))
 
     def test_transcript_without_model_field_is_reported(self):

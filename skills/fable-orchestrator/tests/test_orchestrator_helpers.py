@@ -107,11 +107,11 @@ class FeedbackTests(unittest.TestCase):
                 json.dumps({"agentType": "fable-planner"})
             )
             (subagents / "agent-2.jsonl").write_text(
-                json.dumps({"message": {"model": "claude-fable-5-1"}}) + "\n"
+                json.dumps({"message": {"model": "claude-fable-5-2"}}) + "\n"
             )
             self.assertEqual(
                 feedback.actual_model(
-                    "session-12345678", "fable-planner", root, "claude-fable-5-1"
+                    "session-12345678", "fable-planner", root, "claude-fable-5-2"
                 ),
                 "fable",
             )

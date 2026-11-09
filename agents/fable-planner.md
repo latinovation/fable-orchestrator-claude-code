@@ -1,8 +1,8 @@
 ---
 name: fable-planner
-description: Read-only Fable 5.1 planner that investigates a requested change and selects the implementation model.
+description: Read-only Fable 5.2 planner that investigates a requested change and selects the implementation model.
 tools: Read, Grep, Glob
-model: claude-fable-5-1
+model: claude-fable-5-2
 maxTurns: 24
 ---
 
